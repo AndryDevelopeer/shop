@@ -5,17 +5,38 @@ import ModuleInterface from "../ModuleInterface";
 import router from "../../../router";
 import axios from "axios";
 
-const AUTH_URL = 'http://localhost:4000'
+const AUTH_URL = 'http://localhost:4000/api'
+const $axios = axios.create({
+    withCredentials: true,
+    baseURL: AUTH_URL
+})
+/*$axios.interceptors.request.use((config) => {
+    config.headers.Authorization = localStorage.getItem('accessToken');
+    return config;
+});*/
 
 const state: StateInterface = {
-    form: {
-        email: null,
-        password: null,
+    authentication: {
+        form: {
+            email: null,
+            password: null,
+        },
+        errors: {
+            email: null,
+            password: null
+        },
     },
-    passwordVisible: false,
-    errors: {
-        email: null,
-        password: null
+    registration: {
+        form: {
+            email: null,
+            password: null,
+            confirm: null
+        },
+        errors: {
+            email: null,
+            password: null,
+            confirm: null
+        }
     },
     client: null,
     successCheckRefresh: false,
@@ -29,24 +50,27 @@ const mutations: MutationInterface = {
         state.client = null
         router.replace('/')
     },
-    setToken(state, token): void {
+    clearErrors(state, data: { form: string, field: string }): void {
+        state[data.form].errors[data.field] = null
+    },
+    setToken(state, token: string): void {
         document.cookie = "accessToken=" + token + "; max-age=900; path=/;"
         state.successCheckRefresh = true
         state.successAccess = true
     },
-    setTokens(state, tokens): void {
+    setTokens(state, tokens: { accessToken: string, refreshToken: string }): void {
         document.cookie = "accessToken=" + tokens.accessToken + "; max-age=900; path=/;"
         window.localStorage.setItem('refreshToken', tokens.refreshToken)
         state.successAccess = true
         state.form.password = null
         state.form.email = null
     },
-    setErrors(state, errors): void {
-        state.errors.password = errors.password
-        state.errors.email = errors.email
+    setErrors(state, data: { form, errors }): void {
+        state[data.form].errors.email = data.errors.email
+        state[data.form].errors.password = data.errors.password
         state.successCheckRefresh = false
     },
-    setAuthErrors(state, errors): void {
+    setAuthErrors(state, errors: { param, value }[]): void {
         errors.forEach(el => {
             state.errors[el.param] = el.value;
         })
@@ -57,27 +81,39 @@ const actions: ActionInterface = {
     logout({commit}): void {
         commit('logout')
     },
+    clearErrors({commit}, data: object) {
+        commit('clearErrors', data)
+    },
     registration(context) {
-        axios.post(AUTH_URL + '/api/registration', context.state.form)
+        $axios.post('/registration', context.state.registration.form)
             .then(response => {
                 console.log(response);
             })
     },
     login(context): void {
-        axios.post('/api/auth/login', context.state.form)
+        axios.post(AUTH_URL + '/login', context.state.authentication.form)
             .then(response => {
+                console.log(response);
                 const result = response?.data
                 result?.success
                     ? context.commit('setTokens', result.data)
-                    : context.commit('setErrors', result.errors)
+                    : context.commit('setErrors', {form: 'authentication', errors: result.errors})
             })
             .then(() => {
                 if (!context.state.successAccess) return;
                 router.replace('personal')
             })
             .catch((error) => {
-                context.commit('setErrors', error.response.data.errors)
+                context.commit('setErrors', {form: 'authentication', errors: error.response.data.errors})
             })
+    },
+    develop(context): void {
+        const instance = axios.create({
+            withCredentials: true,
+            baseURL: AUTH_URL
+        })
+        instance.get('/develop')
+        //axios.get(AUTH_URL + '/develop', {withCredentials: true})
     },
     checkRefresh(context): void {
         axios.post('/api/auth/check-refresh-token',

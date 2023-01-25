@@ -1,13 +1,10 @@
 <template>
-  <h1>Main</h1>
+  <h1>Catalog</h1>
 </template>
 
 <script>
 export default {
-  name: "Main",
-  created() {
-    this.$store.dispatch('develop')
-  }
+  name: "CatalogComponent"
 }
 </script>
 
